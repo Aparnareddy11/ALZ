@@ -19,10 +19,18 @@ provider "alz" {
   library_references        = local.alz_library_references
 }
 
+provider "azurerm" {
+  features {}
+}
+
 terraform {
   required_version = ">= 1.9, < 2.0"
 
   required_providers {
+    azurerm = {
+      source = "hashicorp/azurerm"
+    }
+
     alz = {
       source  = "azure/alz"
       version = "~> 0.20"

@@ -50,7 +50,7 @@ jobs:
         run: terraform plan -var-file=test.auto.tfvars -out=tfplan
 
       - name: Upload plan artifact
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
@@ -58,7 +58,7 @@ jobs:
 
   apply:
     name: Terraform Apply
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: plan
     runs-on: ubuntu-latest
 

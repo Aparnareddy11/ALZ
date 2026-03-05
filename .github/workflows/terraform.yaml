@@ -76,6 +76,23 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Preflight - verify management group access
+        shell: bash
+        run: |
+          set -euo pipefail
+          TENANT_ID="$(az account show --query tenantId -o tsv)"
+          ROOT_MG_ID="/providers/Microsoft.Management/managementGroups/${TENANT_ID}"
+          echo "Checking access to tenant root management group: ${ROOT_MG_ID}"
+
+          if ! az rest --method get --url "https://management.azure.com${ROOT_MG_ID}?api-version=2023-04-01" >/dev/null; then
+            echo "Management group preflight failed."
+            echo "Ensure the OIDC service principal has access at tenant root management group scope (${ROOT_MG_ID})."
+            echo "Minimum for ALZ mg creation is management group write permissions (for example, Management Group Contributor)."
+            exit 1
+          fi
+
+          echo "Management group preflight passed."
+
       - name: Terraform Init
         run: terraform init
 

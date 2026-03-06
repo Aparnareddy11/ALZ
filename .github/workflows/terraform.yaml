@@ -107,6 +107,14 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
 
+      - name: Upload state artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate
+          path: |
+            terraform.tfstate
+            terraform.tfstate.backup
+
   destroy:
     name: Terraform Destroy
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -129,6 +137,12 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
+
+      - name: Download state artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfstate
+          path: .
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve

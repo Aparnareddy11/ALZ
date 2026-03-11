@@ -1,1 +1,1 @@
-enable_telemetry = true
+# enable_telemetry = true

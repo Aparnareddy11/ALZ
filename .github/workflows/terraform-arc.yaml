@@ -17,6 +17,10 @@ concurrency:
 
 env:
   TF_IN_AUTOMATION: true
+  ARM_USE_OIDC: true
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
 jobs:
   plan:
@@ -27,20 +31,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          echo "/usr/bin" >> $GITHUB_PATH
+
+      - name: Verify Azure CLI
+        run: az version
+
       - name: Install Terraform
         run: |
           curl -fsSL https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip -o terraform.zip
           unzip -o terraform.zip
           chmod +x terraform
-          echo "$PWD" >> $GITHUB_PATH
-          ./terraform version
+          sudo mv terraform /usr/local/bin/
+          terraform version
 
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | bash || true
-          az version || echo "Azure CLI installation may need manual setup"
-
-      - name: Azure Login (Workload Identity)
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -81,20 +88,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          echo "/usr/bin" >> $GITHUB_PATH
+
+      - name: Verify Azure CLI
+        run: az version
+
       - name: Install Terraform
         run: |
           curl -fsSL https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip -o terraform.zip
           unzip -o terraform.zip
           chmod +x terraform
-          echo "$PWD" >> $GITHUB_PATH
-          ./terraform version
+          sudo mv terraform /usr/local/bin/
+          terraform version
 
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | bash || true
-          az version || echo "Azure CLI installation may need manual setup"
-
-      - name: Azure Login (Workload Identity)
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}

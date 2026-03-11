@@ -49,12 +49,23 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -var-file=test.auto.tfvars -out=tfplan
 
+      - name: Terraform Plan (AKS)
+        run: terraform plan -var-file=test.auto.tfvars -out=aks-tfplan
+        working-directory: AKS
+
       - name: Upload plan artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
           path: tfplan
+
+      - name: Upload AKS plan artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aks-tfplan
+          path: AKS/aks-tfplan
 
   apply:
     name: Terraform Apply
@@ -107,6 +118,16 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
 
+      - name: Download AKS plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aks-tfplan
+          path: AKS
+
+      - name: Terraform Apply (AKS)
+        run: terraform apply -auto-approve aks-tfplan
+        working-directory: AKS
+
       - name: Upload state artifact
         uses: actions/upload-artifact@v4
         with:
@@ -115,34 +136,56 @@ jobs:
             terraform.tfstate
             terraform.tfstate.backup
 
-  destroy:
-    name: Terraform Destroy
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: apply
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
+      - name: Upload AKS state artifact
+        uses: actions/upload-artifact@v4
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          name: aks-tfstate
+          path: |
+            AKS/terraform.tfstate
+            AKS/terraform.tfstate.backup
 
-      - name: Terraform Init
-        run: terraform init
+  # # destroy:
+  #   name: Terraform Destroy
+  #   if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+  #   needs: apply
+  #   runs-on: ubuntu-latest
 
-      - name: Download state artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: tfstate
-          path: .
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
 
-      - name: Terraform Destroy
-        run: terraform destroy -auto-approve
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v3
+
+  #     - name: Azure Login (OIDC)
+  #       uses: azure/login@v2
+  #       with:
+  #         client-id: ${{ secrets.AZURE_CLIENT_ID }}
+  #         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+  #         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+  #     - name: Terraform Init
+  #       run: terraform init
+
+  #     - name: Download state artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: tfstate
+  #         path: .
+
+  #     - name: Terraform Init (AKS)
+  #       run: terraform init
+  #       working-directory: AKS
+
+  #     - name: Download AKS state artifact
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: aks-tfstate
+  #         path: AKS
+
+  #     - name: Terraform Destroy (AKS)
+  #       run: terraform destroy -auto-approve
+  #       working-directory: AKS
+
+  #     - name: Terraform Destroy
+  #       run: terraform destroy -auto-approve

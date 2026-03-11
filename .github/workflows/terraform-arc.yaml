@@ -1,4 +1,4 @@
-name: Terraform CI/CD
+name: AKS-Arc-Runners
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: terraform-${{ github.ref }}
+  group: terraform-arc-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -21,17 +21,23 @@ env:
 jobs:
   plan:
     name: Terraform Plan
-    if: false  # Disabled - using terraform-arc.yaml instead
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set  # Update this to match your AKS Arc runner label
+    container:
+      image: mcr.microsoft.com/azure-cli:latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Install Terraform
+        run: |
+          apt-get update && apt-get install -y unzip curl
+          curl -fsSL https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip -o terraform.zip
+          unzip terraform.zip
+          mv terraform /usr/local/bin/
+          terraform version
 
-      - name: Azure Login (OIDC)
+      - name: Azure Login (Workload Identity)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -40,37 +46,49 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
+        working-directory: alz
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
+        working-directory: alz
 
       - name: Terraform Validate
         run: terraform validate
+        working-directory: alz
 
       - name: Terraform Plan
-        run: terraform plan -var-file=test.auto.tfvars -out=tfplan
+        run: terraform plan -out=tfplan
+        working-directory: alz
 
       - name: Upload plan artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan
-          path: tfplan
+          name: tfplan-arc
+          path: alz/tfplan
 
   apply:
     name: Terraform Apply
-    if: false  # Disabled - using terraform-arc.yaml instead
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set  # Update this to match your AKS Arc runner label
+    container:
+      image: mcr.microsoft.com/azure-cli:latest
+    environment: production
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Install Terraform
+        run: |
+          apt-get update && apt-get install -y unzip curl
+          curl -fsSL https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip -o terraform.zip
+          unzip terraform.zip
+          mv terraform /usr/local/bin/
+          terraform version
 
-      - name: Azure Login (OIDC)
+      - name: Azure Login (Workload Identity)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -88,7 +106,7 @@ jobs:
             echo "Checking access to configured management group: ${SCOPE}"
             if ! az rest --method get --url "https://management.azure.com${SCOPE}?api-version=2023-04-01" >/dev/null; then
               echo "Management group preflight failed for configured scope ${SCOPE}."
-              echo "Ensure the OIDC service principal has read/write permissions on this management group or one of its ancestors."
+              echo "Ensure the workload identity has read/write permissions on this management group."
               exit 1
             fi
             echo "Management group preflight passed for ${SCOPE}."
@@ -98,21 +116,22 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
+        working-directory: alz
 
       - name: Download plan artifact
         uses: actions/download-artifact@v4
         with:
-          name: tfplan
-          path: .
+          name: tfplan-arc
+          path: alz
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
+        working-directory: alz
 
       - name: Upload state artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tfstate
+          name: tfstate-arc
           path: |
-            terraform.tfstate
+            alz/terraform.tfstate
             terraform.tfstate.backup
- 

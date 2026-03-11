@@ -161,73 +161,12 @@ resource "azurerm_log_analytics_workspace" "this" {
 }
 
 module "automatic" {
-  source  = "Azure/avm-res-containerservice-managedcluster/azurerm//examples/automatic-private"
-  version = "0.5.2"
-
-  location  = azurerm_resource_group.this.location
-  name      = module.naming.kubernetes_cluster.name_unique
+  source    = "Azure/avm-res-containerservice-managedcluster/azurerm"
+  version   = "0.5.2"
   parent_id = azurerm_resource_group.this.id
-  addon_profile_oms_agent = {
-    enabled = true
-    config = {
-      log_analytics_workspace_resource_id = azurerm_log_analytics_workspace.this.id
-      use_aad_auth                        = true
-    }
-  }
-  alert_email = "test@this.com"
-  api_server_access_profile = {
-    subnet_id              = azurerm_subnet.api_server.id
-    enable_private_cluster = true
-    private_dns_zone       = azurerm_private_dns_zone.this.id
-    disable_run_command    = true
-  }
-  default_agent_pool = {
-    vnet_subnet_id = azurerm_subnet.cluster.id
-  }
-  ingress_profile = {
-    web_app_routing = {
-      enabled = true
-      nginx = {
-        default_ingress_controller_type = "Internal"
-      }
-    }
-  }
-  maintenanceconfiguration = {
-    aksManagedAutoUpgradeSchedule = {
-      name = "aksManagedAutoUpgradeSchedule"
-      maintenance_window = {
-        duration_hours = 4
-        start_time     = "00:00"
-        utc_offset     = "+00:00"
-        start_date     = "2025-09-27"
-        schedule = {
-          weekly = {
-            day_of_week    = "Sunday"
-            interval_weeks = 1
-          }
-        }
-      }
-    }
-  }
-  managed_identities = {
-    user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
-  }
-  network_profile = {
-    # Change this to userDefinedRouting to prevent creation of public IP.
-    outbound_type = "loadBalancer"
-  }
-  onboard_alerts          = true
-  onboard_monitoring      = true
-  prometheus_workspace_id = azurerm_monitor_workspace.this.id
-  role_assignments = {
-    "admin" = {
-      principal_id               = data.azurerm_client_config.current.object_id
-      role_definition_id_or_name = "Azure Kubernetes Service RBAC Admin"
-    }
-  }
-  sku = {
-    name = "Automatic"
-    tier = "Standard"
-  }
+
+  name     = module.naming.kubernetes_cluster.name_unique
+  location = azurerm_resource_group.this.location
+
 }
 

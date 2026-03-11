@@ -229,9 +229,5 @@ module "automatic" {
     name = "Automatic"
     tier = "Standard"
   }
-
-  depends_on = [
-    azurerm_role_assignment.network_contributor
-  ]
 }
 

@@ -187,7 +187,7 @@ module "default" {
     managed                = true
   }
   api_server_access_profile = {
-    enable_private_cluster = false
+    enable_private_cluster = true
   }
   # addon_profile_oms_agent = {
   #   enabled = true

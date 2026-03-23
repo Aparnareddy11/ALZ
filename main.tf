@@ -76,7 +76,10 @@ resource "random_string" "suffix" {
 }
 
 locals {
-  location = module.regions.regions[random_integer.region_index.result].name
+  location           = module.regions.regions[random_integer.region_index.result].name
+  aks_name_base      = module.naming.kubernetes_cluster.name_unique
+  aks_name_automatic = "${substr(local.aks_name_base, 0, 53)}-auto"
+  aks_name_default   = "${substr(local.aks_name_base, 0, 53)}-base"
 }
 
 # This ensures we have unique CAF compliant names for our resources.
@@ -165,17 +168,17 @@ module "automatic" {
   version   = "0.5.2"
   parent_id = azurerm_resource_group.this.id
 
-  name     = module.naming.kubernetes_cluster.name_unique
+  name     = local.aks_name_automatic
   location = azurerm_resource_group.this.location
 
 }
 
 
 module "default" {
-  source    = "Azure/avm-res-containerservice-managedcluster/azurerm//examples/default"
+  source    = "Azure/avm-res-containerservice-managedcluster/azurerm"
   version   = "0.5.3"
   location  = azurerm_resource_group.this.location
-  name      = module.naming.kubernetes_cluster.name_unique
+  name      = local.aks_name_default
   parent_id = azurerm_resource_group.this.id
   aad_profile = {
     enable_azure_rbac      = true

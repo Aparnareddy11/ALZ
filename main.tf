@@ -170,3 +170,48 @@ module "automatic" {
 
 }
 
+
+module "default" {
+  source    = "Azure/avm-res-containerservice-managedcluster/azurerm//examples/default"
+  version   = "0.5.3"
+  location  = azurerm_resource_group.this.location
+  name      = module.naming.kubernetes_cluster.name_unique
+  parent_id = azurerm_resource_group.this.id
+  aad_profile = {
+    enable_azure_rbac      = true
+    tenant_id              = data.azurerm_client_config.current.tenant_id
+    admin_group_object_ids = []
+    managed                = true
+  }
+  # addon_profile_oms_agent = {
+  #   enabled = true
+  #   config = {
+  #     log_analytics_workspace_resource_id = azurerm_log_analytics_workspace.this.id
+  #     use_aad_auth                        = true
+  #   }
+  # }
+  auto_upgrade_profile = {
+    upgrade_channel = "none"
+  }
+  default_agent_pool = {
+    vm_size = "Standard_DS2_v2"
+
+    upgrade_settings = {
+      max_surge = "10%"
+    }
+  }
+  # diagnostic_settings = {
+  #   to_la = {
+  #     name                  = "to-la"
+  #     workspace_resource_id = azurerm_log_analytics_workspace.this.id
+  #   }
+  # }
+  dns_prefix = "defaultexample"
+  managed_identities = {
+    system_assigned = true
+  }
+  sku = {
+    tier = "Standard"
+    name = "Base"
+  }
+}

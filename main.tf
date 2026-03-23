@@ -155,23 +155,23 @@ resource "azurerm_role_assignment" "private_dns_zone_contributor" {
   role_definition_name = "Private DNS Zone Contributor"
 }
 
-resource "azurerm_log_analytics_workspace" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = module.naming.log_analytics_workspace.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  retention_in_days   = 30
-  sku                 = "PerGB2018"
-}
+# resource "azurerm_log_analytics_workspace" "this" {
+#   location            = azurerm_resource_group.this.location
+#   name                = module.naming.log_analytics_workspace.name_unique
+#   resource_group_name = azurerm_resource_group.this.name
+#   retention_in_days   = 30
+#   sku                 = "PerGB2018"
+# }
 
-module "automatic" {
-  source    = "Azure/avm-res-containerservice-managedcluster/azurerm"
-  version   = "0.5.2"
-  parent_id = azurerm_resource_group.this.id
+# module "automatic" {
+#   source    = "Azure/avm-res-containerservice-managedcluster/azurerm"
+#   version   = "0.5.2"
+#   parent_id = azurerm_resource_group.this.id
 
-  name     = local.aks_name_automatic
-  location = azurerm_resource_group.this.location
+#   name     = local.aks_name_automatic
+#   location = azurerm_resource_group.this.location
 
-}
+# }
 
 
 module "default" {
@@ -185,6 +185,9 @@ module "default" {
     tenant_id              = data.azurerm_client_config.current.tenant_id
     admin_group_object_ids = []
     managed                = true
+  }
+  api_server_access_profile = {
+    enable_private_cluster = false
   }
   # addon_profile_oms_agent = {
   #   enabled = true

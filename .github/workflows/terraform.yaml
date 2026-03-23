@@ -1,10 +1,6 @@
 name: Terraform CI/CD
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -21,7 +17,6 @@ env:
 jobs:
   plan:
     name: Terraform Plan
-    if: false  # Disabled - using terraform-arc.yaml instead
     runs-on: ubuntu-latest
 
     steps:
@@ -59,7 +54,6 @@ jobs:
 
   apply:
     name: Terraform Apply
-    if: false  # Disabled - using terraform-arc.yaml instead
     needs: plan
     runs-on: ubuntu-latest
 

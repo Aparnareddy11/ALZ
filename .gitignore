@@ -1,0 +1,33 @@
+# Terraform working directory and provider binaries
+.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Terraform variable files that may contain secrets
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Keep example tfvars if you add one later
+!*.example.tfvars
+
+# Ignore local override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform CLI crash logs
+crash.log
+crash.*.log
+
+# Terraform plan output files
+*.tfplan
+*.plan
+
+# CLI config files
+.terraformrc
+terraform.rc

@@ -18,8 +18,8 @@ env:
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   TFSTATE_STORAGE_ACCOUNT_NAME: teststg252911
-  TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME }}
-  TFSTATE_CONTAINER_NAME: ${{ secrets.TFSTATE_CONTAINER_NAME }}
+  TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME || 'Harsha-RG' }}
+  TFSTATE_CONTAINER_NAME: ${{ secrets.TFSTATE_CONTAINER_NAME || 'tfstate' }}
   TFSTATE_KEY: terraform-root.tfstate
 
 jobs:
@@ -48,7 +48,8 @@ jobs:
             -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
             -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
             -backend-config="key=${TFSTATE_KEY}" \
-            -backend-config="use_oidc=true"
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
@@ -107,11 +108,12 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init -reconfigure \
-            -backend-config="resource_group_name=Harsha-RG" \
-            -backend-config="storage_account_name=teststg252911" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=terraform-aks.tfstate" \
-            -backend-config="use_oidc=true"
+            -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP_NAME}" \
+            -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
+            -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
+            -backend-config="key=${TFSTATE_KEY}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
 
       - name: Download plan artifact
         uses: actions/download-artifact@v4

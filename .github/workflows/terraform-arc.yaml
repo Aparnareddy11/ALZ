@@ -18,8 +18,8 @@ env:
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   TFSTATE_STORAGE_ACCOUNT_NAME: teststg252911
-  TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME }}
-  TFSTATE_CONTAINER_NAME: ${{ secrets.TFSTATE_CONTAINER_NAME }}
+  TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME || 'Harsha-RG' }}
+  TFSTATE_CONTAINER_NAME: ${{ secrets.TFSTATE_CONTAINER_NAME || 'tfstate' }}
   TFSTATE_KEY: terraform-alz.tfstate
 
 jobs:
@@ -61,7 +61,8 @@ jobs:
             -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
             -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
             -backend-config="key=${TFSTATE_KEY}" \
-            -backend-config="use_oidc=true"
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
         working-directory: alz
 
       - name: Terraform Format Check
@@ -142,7 +143,8 @@ jobs:
             -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
             -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
             -backend-config="key=${TFSTATE_KEY}" \
-            -backend-config="use_oidc=true"
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
         working-directory: alz
 
       - name: Download plan artifact

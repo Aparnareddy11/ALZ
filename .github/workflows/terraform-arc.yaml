@@ -17,6 +17,10 @@ env:
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TFSTATE_STORAGE_ACCOUNT_NAME: teststg252911
+  TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME }}
+  TFSTATE_CONTAINER_NAME: ${{ secrets.TFSTATE_CONTAINER_NAME }}
+  TFSTATE_KEY: terraform-alz.tfstate
 
 jobs:
   plan:
@@ -51,7 +55,13 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init -reconfigure \
+            -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP_NAME}" \
+            -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
+            -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
+            -backend-config="key=${TFSTATE_KEY}" \
+            -backend-config="use_oidc=true"
         working-directory: alz
 
       - name: Terraform Format Check
@@ -126,7 +136,13 @@ jobs:
           fi
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          terraform init -reconfigure \
+            -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP_NAME}" \
+            -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
+            -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
+            -backend-config="key=${TFSTATE_KEY}" \
+            -backend-config="use_oidc=true"
         working-directory: alz
 
       - name: Download plan artifact
@@ -139,10 +155,3 @@ jobs:
         run: terraform apply -auto-approve tfplan
         working-directory: alz
 
-      - name: Upload state artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfstate-arc
-          path: |
-            alz/terraform.tfstate
-            terraform.tfstate.backup

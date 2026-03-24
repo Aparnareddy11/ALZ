@@ -125,59 +125,59 @@ resource "azurerm_resource_group" "this" {
 #   address_space       = ["172.19.0.0/16"]
 # }
 
-resource "azurerm_virtual_network" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = module.naming.virtual_network.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  address_space       = [local.vnet_primary_cidr, local.vnet_secondary_cidr]
-}
+# resource "azurerm_virtual_network" "this" {
+#   location            = azurerm_resource_group.this.location
+#   name                = module.naming.virtual_network.name_unique
+#   resource_group_name = azurerm_resource_group.this.name
+#   address_space       = [local.vnet_primary_cidr, local.vnet_secondary_cidr]
+# }
 
 # 2 x /28 for AKS control plane
-resource "azurerm_subnet" "control_plane" {
-  for_each             = local.control_plane_subnets
-  name                 = "snet-aks-${each.key}"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = [each.value]
+# resource "azurerm_subnet" "control_plane" {
+#   for_each             = local.control_plane_subnets
+#   name                 = "snet-aks-${each.key}"
+#   resource_group_name  = azurerm_resource_group.this.name
+#   virtual_network_name = azurerm_virtual_network.this.name
+#   address_prefixes     = [each.value]
 
-  delegation {
-    name = "aks-apiserver-delegation"
-    service_delegation {
-      name    = "Microsoft.ContainerService/managedClusters"
-      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
-    }
-  }
-}
+#   delegation {
+#     name = "aks-apiserver-delegation"
+#     service_delegation {
+#       name    = "Microsoft.ContainerService/managedClusters"
+#       actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+#     }
+#   }
+# }
 
 # 3 x /26 for AKS data plane
-resource "azurerm_subnet" "data_plane" {
-  for_each             = local.data_plane_subnets
-  name                 = "snet-aks-${each.key}"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = [each.value]
-}
+# resource "azurerm_subnet" "data_plane" {
+#   for_each             = local.data_plane_subnets
+#   name                 = "snet-aks-${each.key}"
+#   resource_group_name  = azurerm_resource_group.this.name
+#   virtual_network_name = azurerm_virtual_network.this.name
+#   address_prefixes     = [each.value]
+# }
 
 # 3 x /20 non-routable secondary subnets for pod IP growth
-resource "azurerm_subnet" "pod_secondary" {
-  for_each             = local.pod_secondary_subnets
-  name                 = "snet-aks-${each.key}"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.this.name
-  address_prefixes     = [each.value]
-}
+# resource "azurerm_subnet" "pod_secondary" {
+#   for_each             = local.pod_secondary_subnets
+#   name                 = "snet-aks-${each.key}"
+#   resource_group_name  = azurerm_resource_group.this.name
+#   virtual_network_name = azurerm_virtual_network.this.name
+#   address_prefixes     = [each.value]
+# }
 
-resource "azurerm_user_assigned_identity" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = module.naming.user_assigned_identity.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-}
+# resource "azurerm_user_assigned_identity" "this" {
+#   location            = azurerm_resource_group.this.location
+#   name                = module.naming.user_assigned_identity.name_unique
+#   resource_group_name = azurerm_resource_group.this.name
+# }
 
-resource "azurerm_role_assignment" "network_contributor_vnet" {
-  scope                = azurerm_virtual_network.this.id
-  role_definition_name = "Network Contributor"
-  principal_id         = azurerm_user_assigned_identity.this.principal_id
-}
+# resource "azurerm_role_assignment" "network_contributor_vnet" {
+#   scope                = azurerm_virtual_network.this.id
+#   role_definition_name = "Network Contributor"
+#   principal_id         = azurerm_user_assigned_identity.this.principal_id
+# }
 
 # resource "azurerm_role_assignment" "network_contributor" {
 #   principal_id         = azurerm_user_assigned_identity.this.principal_id
@@ -237,9 +237,9 @@ module "default" {
   }
 
   api_server_access_profile = {
-    enable_private_cluster  = true
-    enable_vnet_integration = true
-    subnet_id               = azurerm_subnet.control_plane["cp01"].id
+    enable_private_cluster = false
+    # enable_vnet_integration = true
+    # subnet_id               = azurerm_subnet.control_plane["cp01"].id
   }
 
   auto_upgrade_profile = {
@@ -247,9 +247,9 @@ module "default" {
   }
 
   default_agent_pool = {
-    vm_size        = "Standard_DS2_v2"
-    vnet_subnet_id = azurerm_subnet.data_plane["dp01"].id
-    pod_subnet_id  = azurerm_subnet.pod_secondary["pod01"].id
+    vm_size = "Standard_DS2_v2"
+    # vnet_subnet_id = azurerm_subnet.data_plane["dp01"].id
+    # pod_subnet_id  = azurerm_subnet.pod_secondary["pod01"].id
 
     upgrade_settings = {
       max_surge = "10%"
@@ -266,6 +266,4 @@ module "default" {
     tier = "Standard"
     name = "Base"
   }
-
-  depends_on = [azurerm_role_assignment.network_contributor_vnet]
 }

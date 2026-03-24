@@ -237,8 +237,9 @@ module "default" {
   }
 
   api_server_access_profile = {
-    enable_private_cluster = true
-    subnet_id              = azurerm_subnet.control_plane["cp01"].id
+    enable_private_cluster  = true
+    enable_vnet_integration = true
+    subnet_id               = azurerm_subnet.control_plane["cp01"].id
   }
 
   auto_upgrade_profile = {

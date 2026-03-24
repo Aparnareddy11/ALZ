@@ -94,36 +94,36 @@ resource "azurerm_resource_group" "this" {
   name     = module.naming.resource_group.name_unique
 }
 
-resource "azurerm_monitor_workspace" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = "prom-${random_string.suffix.result}"
-  resource_group_name = azurerm_resource_group.this.name
-}
+# resource "azurerm_monitor_workspace" "this" {
+#   location            = azurerm_resource_group.this.location
+#   name                = "prom-${random_string.suffix.result}"
+#   resource_group_name = azurerm_resource_group.this.name
+# }
 
-resource "azurerm_virtual_network" "this" {
-  location            = azurerm_resource_group.this.location
-  name                = module.naming.virtual_network.name_unique
-  resource_group_name = azurerm_resource_group.this.name
-  address_space       = ["172.19.0.0/16"]
-}
+# resource "azurerm_virtual_network" "this" {
+#   location            = azurerm_resource_group.this.location
+#   name                = module.naming.virtual_network.name_unique
+#   resource_group_name = azurerm_resource_group.this.name
+#   address_space       = ["172.19.0.0/16"]
+# }
 
-resource "azurerm_subnet" "api_server" {
-  address_prefixes     = ["172.19.0.0/28"]
-  name                 = "apiServerSubnet"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.this.name
+# resource "azurerm_subnet" "api_server" {
+#   address_prefixes     = ["172.19.0.0/28"]
+#   name                 = "apiServerSubnet"
+#   resource_group_name  = azurerm_resource_group.this.name
+#   virtual_network_name = azurerm_virtual_network.this.name
 
-  lifecycle {
-    ignore_changes = [delegation]
-  }
-}
+#   lifecycle {
+#     ignore_changes = [delegation]
+#   }
+# }
 
-resource "azurerm_subnet" "cluster" {
-  address_prefixes     = ["172.19.1.0/24"]
-  name                 = "clusterSubnet"
-  resource_group_name  = azurerm_resource_group.this.name
-  virtual_network_name = azurerm_virtual_network.this.name
-}
+# resource "azurerm_subnet" "cluster" {
+#   address_prefixes     = ["172.19.1.0/24"]
+#   name                 = "clusterSubnet"
+#   resource_group_name  = azurerm_resource_group.this.name
+#   virtual_network_name = azurerm_virtual_network.this.name
+# }
 
 resource "azurerm_user_assigned_identity" "this" {
   location            = azurerm_resource_group.this.location
@@ -131,29 +131,29 @@ resource "azurerm_user_assigned_identity" "this" {
   resource_group_name = azurerm_resource_group.this.name
 }
 
-resource "azurerm_role_assignment" "network_contributor" {
-  principal_id         = azurerm_user_assigned_identity.this.principal_id
-  scope                = azurerm_virtual_network.this.id
-  role_definition_name = "Network Contributor"
-}
+# resource "azurerm_role_assignment" "network_contributor" {
+#   principal_id         = azurerm_user_assigned_identity.this.principal_id
+#   scope                = azurerm_virtual_network.this.id
+#   role_definition_name = "Network Contributor"
+# }
 
-resource "azurerm_private_dns_zone" "this" {
-  name                = "privatelink.${azurerm_resource_group.this.location}.azmk8s.io"
-  resource_group_name = azurerm_resource_group.this.name
-}
+# resource "azurerm_private_dns_zone" "this" {
+#   name                = "privatelink.${azurerm_resource_group.this.location}.azmk8s.io"
+#   resource_group_name = azurerm_resource_group.this.name
+# }
 
-resource "azurerm_private_dns_zone_virtual_network_link" "this" {
-  name                  = "privatelink-${azurerm_resource_group.this.location}-azmk8s-io"
-  private_dns_zone_name = azurerm_private_dns_zone.this.name
-  resource_group_name   = azurerm_resource_group.this.name
-  virtual_network_id    = azurerm_virtual_network.this.id
-}
+# resource "azurerm_private_dns_zone_virtual_network_link" "this" {
+#   name                  = "privatelink-${azurerm_resource_group.this.location}-azmk8s-io"
+#   private_dns_zone_name = azurerm_private_dns_zone.this.name
+#   resource_group_name   = azurerm_resource_group.this.name
+#   virtual_network_id    = azurerm_virtual_network.this.id
+# }
 
-resource "azurerm_role_assignment" "private_dns_zone_contributor" {
-  principal_id         = azurerm_user_assigned_identity.this.principal_id
-  scope                = azurerm_private_dns_zone.this.id
-  role_definition_name = "Private DNS Zone Contributor"
-}
+# resource "azurerm_role_assignment" "private_dns_zone_contributor" {
+#   principal_id         = azurerm_user_assigned_identity.this.principal_id
+#   scope                = azurerm_private_dns_zone.this.id
+#   role_definition_name = "Private DNS Zone Contributor"
+# }
 
 # resource "azurerm_log_analytics_workspace" "this" {
 #   location            = azurerm_resource_group.this.location

@@ -2,9 +2,6 @@ name: AKS-Arc-Runners
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Terraform CI/CD"]
-    types: [completed]
 
 permissions:
   contents: read
@@ -29,7 +26,6 @@ env:
 jobs:
   plan:
     name: Terraform Plan
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on:
       - self-hosted
       - aks-arc-runners
@@ -92,10 +88,6 @@ jobs:
 
   apply:
     name: Terraform Apply
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     needs: [plan]
     runs-on:
       - self-hosted

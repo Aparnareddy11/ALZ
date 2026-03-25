@@ -6,9 +6,9 @@
 
 # Read AKS created in main.tf (module.default)
 data "azurerm_kubernetes_cluster" "aks" {
-  name                = local.aks_name_automatic
+  name                = local.aks_name_default
   resource_group_name = azurerm_resource_group.this.name
-  depends_on          = [module.automatic]
+  depends_on          = [module.default]
 }
 
 locals {

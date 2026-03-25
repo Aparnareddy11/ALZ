@@ -1,4 +1,4 @@
-name: AKS-Arc-Runners
+name: AKS-Arc-Runners -test
 
 on:
   workflow_dispatch:

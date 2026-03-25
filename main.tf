@@ -211,59 +211,58 @@ resource "azurerm_user_assigned_identity" "this" {
 #   sku                 = "PerGB2018"
 # }
 
-module "automatic" {
-  source    = "Azure/avm-res-containerservice-managedcluster/azurerm"
-  version   = "0.5.2"
-  parent_id = azurerm_resource_group.this.id
-
-  name     = local.aks_name_automatic
-  location = azurerm_resource_group.this.location
-
-}
-
-
-# module "default" {
+# module "automatic" {
 #   source    = "Azure/avm-res-containerservice-managedcluster/azurerm"
-#   version   = "0.5.3"
-#   location  = azurerm_resource_group.this.location
-#   name      = local.aks_name_default
+#   version   = "0.5.2"
 #   parent_id = azurerm_resource_group.this.id
 
-#   aad_profile = {
-#     enable_azure_rbac      = true
-#     tenant_id              = data.azurerm_client_config.current.tenant_id
-#     admin_group_object_ids = []
-#     managed                = true
-#   }
+#   name     = local.aks_name_automatic
+#   location = azurerm_resource_group.this.location
 
-#   api_server_access_profile = {
-#     enable_private_cluster = false
-#     # enable_vnet_integration = true
-#     # subnet_id               = azurerm_subnet.control_plane["cp01"].id
-#   }
-
-#   auto_upgrade_profile = {
-#     upgrade_channel = "none"
-#   }
-
-#   default_agent_pool = {
-#     vm_size = "Standard_DS2_v2"
-#     # vnet_subnet_id = azurerm_subnet.data_plane["dp01"].id
-#     # pod_subnet_id  = azurerm_subnet.pod_secondary["pod01"].id
-
-#     upgrade_settings = {
-#       max_surge = "10%"
-#     }
-#   }
-
-#   dns_prefix = "defaultexample"
-
-#   managed_identities = {
-#     user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
-#   }
-
-#   sku = {
-#     tier = "Standard"
-#     name = "Base"
-#   }
 # }
+
+
+module "default" {
+  source    = "Azure/avm-res-containerservice-managedcluster/azurerm"
+  version   = "0.5.3"
+  location  = azurerm_resource_group.this.location
+  name      = local.aks_name_default
+  parent_id = azurerm_resource_group.this.id
+
+  aad_profile = {
+    enable_azure_rbac      = true
+    tenant_id              = data.azurerm_client_config.current.tenant_id
+    admin_group_object_ids = []
+    managed                = true
+  }
+
+  api_server_access_profile = {
+    enable_private_cluster = false
+    # enable_vnet_integration = true
+    # subnet_id               = azurerm_subnet.control_plane["cp01"].id
+  }
+
+  auto_upgrade_profile = {
+    upgrade_channel = "none"
+  }
+
+  default_agent_pool = {
+    vm_size = "Standard_DS2_v2"
+    # vnet_subnet_id = azurerm_subnet.data_plane["dp01"].id
+    # pod_subnet_id  = azurerm_subnet.pod_secondary["pod01"].id
+    upgrade_settings = {
+      max_surge = "10%"
+    }
+  }
+
+  dns_prefix = "defaultexample"
+
+  managed_identities = {
+    user_assigned_resource_ids = [azurerm_user_assigned_identity.this.id]
+  }
+
+  sku = {
+    tier = "Standard"
+    name = "Base"
+  }
+}

@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  actions: read
 
 concurrency:
   group: terraform-${{ github.ref }}
@@ -17,6 +18,7 @@ env:
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARC_RUNNER_LABEL: aks-arc-runners
   TFSTATE_STORAGE_ACCOUNT_NAME: teststg252911
   TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME || 'Harsha-RG' }}
   TFSTATE_CONTAINER_NAME: ${{ secrets.TFSTATE_CONTAINER_NAME || 'tfstate' }}
@@ -123,5 +125,48 @@ jobs:
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
+
+  verify-arc-runner:
+    name: Verify ARC Runner Registration
+    needs: apply
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for ARC runner label to appear online
+        uses: actions/github-script@v7
+        env:
+          ARC_LABEL: ${{ env.ARC_RUNNER_LABEL }}
+          MAX_ATTEMPTS: "20"
+          SLEEP_SECONDS: "30"
+        with:
+          script: |
+            const arcLabel = process.env.ARC_LABEL;
+            const maxAttempts = Number(process.env.MAX_ATTEMPTS || 20);
+            const sleepSeconds = Number(process.env.SLEEP_SECONDS || 30);
+            const { owner, repo } = context.repo;
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              const res = await github.rest.actions.listSelfHostedRunnersForRepo({
+                owner,
+                repo,
+                per_page: 100
+              });
+
+              const hasOnlineArcRunner = res.data.runners.some((r) => {
+                const labels = (r.labels || []).map((l) => l.name);
+                return r.status === 'online' && labels.includes(arcLabel);
+              });
+
+              if (hasOnlineArcRunner) {
+                core.info(`ARC runner label '${arcLabel}' is online.`);
+                return;
+              }
+
+              core.warning(`Attempt ${attempt}/${maxAttempts}: label '${arcLabel}' not online yet.`);
+              if (attempt < maxAttempts) {
+                await new Promise((resolve) => setTimeout(resolve, sleepSeconds * 1000));
+              }
+            }
+
+            core.setFailed(`ARC runner label '${arcLabel}' is still not online. Check ARC listener/controller pods and GitHub App permissions/installation.`);
 
  

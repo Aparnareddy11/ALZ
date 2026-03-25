@@ -2,10 +2,14 @@ name: AKS-Arc-Runners
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Terraform CI/CD"]
+    types: [completed]
 
 permissions:
   contents: read
   id-token: write
+  actions: read
 
 concurrency:
   group: terraform-arc-${{ github.ref }}
@@ -23,10 +27,56 @@ env:
   TFSTATE_KEY: terraform-alz.tfstate
 
 jobs:
+  wait-for-arc-runner:
+    name: Wait For ARC Runner
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait until ARC runner label is online
+        id: wait
+        uses: actions/github-script@v7
+        env:
+          ARC_LABEL: aks-arc-runners
+          MAX_ATTEMPTS: "20"
+          SLEEP_SECONDS: "30"
+        with:
+          script: |
+            const arcLabel = process.env.ARC_LABEL;
+            const maxAttempts = Number(process.env.MAX_ATTEMPTS || 20);
+            const sleepSeconds = Number(process.env.SLEEP_SECONDS || 30);
+            const { owner, repo } = context.repo;
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              const res = await github.rest.actions.listSelfHostedRunnersForRepo({
+                owner,
+                repo,
+                per_page: 100
+              });
+
+              const hasOnlineArcRunner = res.data.runners.some((r) => {
+                const labels = (r.labels || []).map((l) => l.name);
+                return r.status === 'online' && labels.includes(arcLabel);
+              });
+
+              if (hasOnlineArcRunner) {
+                core.info(`Found online ARC runner label '${arcLabel}' on attempt ${attempt}/${maxAttempts}.`);
+                return;
+              }
+
+              core.warning(`Attempt ${attempt}/${maxAttempts}: no online runner for label '${arcLabel}'.`);
+              if (attempt < maxAttempts) {
+                await new Promise((resolve) => setTimeout(resolve, sleepSeconds * 1000));
+              }
+            }
+
+            core.setFailed(`No online ARC runner found with label '${arcLabel}' after ${maxAttempts * sleepSeconds} seconds. Run Terraform CI/CD first and verify ARC controller/listener pods are healthy.`);
+
   plan:
     name: Terraform Plan
-    # runs-on: arc-runner-set # Update this to match your AKS Arc runner label
-    runs-on: aks-arc-runners
+    needs: wait-for-arc-runner
+    runs-on:
+      - self-hosted
+      - aks-arc-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -86,9 +136,14 @@ jobs:
 
   apply:
     name: Terraform Apply
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: plan
-    runs-on: arc-runner-set  # Update this to match your AKS Arc runner label
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    needs: [wait-for-arc-runner, plan]
+    runs-on:
+      - self-hosted
+      - aks-arc-runners
 
     steps:
       - name: Checkout

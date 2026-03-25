@@ -26,6 +26,7 @@ env:
 jobs:
   plan:
     name: Terraform Plan
+    # Use the stable scale-set label. Do not use ephemeral pod names like ...-runner-<suffix>.
     runs-on:
       - self-hosted
       - aks-arc-runners
@@ -89,6 +90,7 @@ jobs:
   apply:
     name: Terraform Apply
     needs: [plan]
+    # Use the stable scale-set label. Do not use ephemeral pod names like ...-runner-<suffix>.
     runs-on:
       - self-hosted
       - aks-arc-runners

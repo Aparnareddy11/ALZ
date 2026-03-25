@@ -8,7 +8,7 @@
 data "azurerm_kubernetes_cluster" "aks" {
   name                = local.aks_name_default
   resource_group_name = azurerm_resource_group.this.name
-  depends_on          = [module.default]
+  depends_on          = [module.automatic]
 }
 
 # Kubernetes provider against AKS admin kubeconfig

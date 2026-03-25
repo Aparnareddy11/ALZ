@@ -102,6 +102,13 @@ resource "kubernetes_role_binding" "arc_controller_secret_reader" {
     name      = "arc-gha-rs-controller"
     namespace = kubernetes_namespace.arc_system.metadata[0].name
   }
+
+  # Some chart versions/name overrides use this service account name.
+  subject {
+    kind      = "ServiceAccount"
+    name      = "gha-runner-scale-set-controller"
+    namespace = kubernetes_namespace.arc_system.metadata[0].name
+  }
 }
 
 # GitHub App secret for ARC
@@ -158,7 +165,7 @@ resource "helm_release" "arc_runner_scale_set" {
 
       controllerServiceAccount = {
         namespace = kubernetes_namespace.arc_system.metadata[0].name
-        name      = "gha-runner-scale-set-controller"
+        name      = "arc-gha-rs-controller"
       }
 
       template = {

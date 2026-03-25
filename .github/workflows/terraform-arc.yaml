@@ -6,7 +6,6 @@ on:
 permissions:
   contents: read
   id-token: write
-  actions: read
 
 concurrency:
   group: terraform-arc-${{ github.ref }}
@@ -26,29 +25,13 @@ env:
 jobs:
   plan:
     name: Terraform Plan
-    # Use the stable scale-set label. Do not use ephemeral pod names like ...-runner-<suffix>.
     runs-on:
       - self-hosted
       - aks-arc-runners
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-          echo "/usr/bin" >> $GITHUB_PATH
-
-      - name: Verify Azure CLI
-        run: az version
-
-      - name: Install Terraform
-        run: |
-          curl -fsSL https://releases.hashicorp.com/terraform/1.12.0/terraform_1.12.0_linux_amd64.zip -o terraform.zip
-          unzip -o terraform.zip
-          chmod +x terraform
-          sudo mv terraform /usr/local/bin/
-          terraform version
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
@@ -57,7 +40,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.0
+
       - name: Terraform Init
+        working-directory: alz
         run: |
           terraform init -reconfigure \
             -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP_NAME}" \
@@ -66,22 +55,20 @@ jobs:
             -backend-config="key=${TFSTATE_KEY}" \
             -backend-config="use_oidc=true" \
             -backend-config="use_azuread_auth=true"
-        working-directory: alz
 
       - name: Terraform Format Check
-        run: terraform fmt -check -recursive
         working-directory: alz
+        run: terraform fmt -check -recursive
 
       - name: Terraform Validate
-        run: terraform validate
         working-directory: alz
+        run: terraform validate
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan
         working-directory: alz
+        run: terraform plan -out=tfplan
 
       - name: Upload plan artifact
-        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: tfplan-arc
@@ -90,7 +77,6 @@ jobs:
   apply:
     name: Terraform Apply
     needs: [plan]
-    # Use the stable scale-set label. Do not use ephemeral pod names like ...-runner-<suffix>.
     runs-on:
       - self-hosted
       - aks-arc-runners
@@ -99,22 +85,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-          echo "/usr/bin" >> $GITHUB_PATH
-
-      - name: Verify Azure CLI
-        run: az version
-
-      - name: Install Terraform
-        run: |
-          curl -fsSL https://releases.hashicorp.com/terraform/1.12.0/terraform_1.12.0_linux_amd64.zip -o terraform.zip
-          unzip -o terraform.zip
-          chmod +x terraform
-          sudo mv terraform /usr/local/bin/
-          terraform version
-
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
@@ -122,26 +92,13 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Preflight - verify management group access
-        shell: bash
-        env:
-          TARGET_MG_ID: ${{ secrets.AZURE_MANAGEMENT_GROUP_ID }}
-        run: |
-          set -euo pipefail
-          if [ -n "${TARGET_MG_ID:-}" ]; then
-            SCOPE="/providers/Microsoft.Management/managementGroups/${TARGET_MG_ID}"
-            echo "Checking access to configured management group: ${SCOPE}"
-            if ! az rest --method get --url "https://management.azure.com${SCOPE}?api-version=2023-04-01" >/dev/null; then
-              echo "Management group preflight failed for configured scope ${SCOPE}."
-              echo "Ensure the workload identity has read/write permissions on this management group."
-              exit 1
-            fi
-            echo "Management group preflight passed for ${SCOPE}."
-          else
-            echo "AZURE_MANAGEMENT_GROUP_ID secret not set. Skipping management group preflight."
-          fi
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.0
 
       - name: Terraform Init
+        working-directory: alz
         run: |
           terraform init -reconfigure \
             -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP_NAME}" \
@@ -150,7 +107,6 @@ jobs:
             -backend-config="key=${TFSTATE_KEY}" \
             -backend-config="use_oidc=true" \
             -backend-config="use_azuread_auth=true"
-        working-directory: alz
 
       - name: Download plan artifact
         uses: actions/download-artifact@v4
@@ -159,6 +115,5 @@ jobs:
           path: alz
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
         working-directory: alz
-
+        run: terraform apply -auto-approve tfplan

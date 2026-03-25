@@ -68,6 +68,42 @@ resource "kubernetes_namespace" "arc_runners" {
   }
 }
 
+# Allow ARC controller (in arc-system) to read GitHub config secret in arc-runners.
+resource "kubernetes_role" "arc_controller_secret_reader" {
+  metadata {
+    name      = "arc-controller-secret-reader"
+    namespace = kubernetes_namespace.arc_runners.metadata[0].name
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["secrets"]
+    resource_names = [
+      "arc-github-secret"
+    ]
+    verbs = ["get"]
+  }
+}
+
+resource "kubernetes_role_binding" "arc_controller_secret_reader" {
+  metadata {
+    name      = "arc-controller-secret-reader-binding"
+    namespace = kubernetes_namespace.arc_runners.metadata[0].name
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.arc_controller_secret_reader.metadata[0].name
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "arc-gha-rs-controller"
+    namespace = kubernetes_namespace.arc_system.metadata[0].name
+  }
+}
+
 # GitHub App secret for ARC
 resource "kubernetes_secret" "arc_github_secret" {
   metadata {
@@ -82,6 +118,10 @@ resource "kubernetes_secret" "arc_github_secret" {
   }
 
   type = "Opaque"
+
+  depends_on = [
+    kubernetes_role_binding.arc_controller_secret_reader
+  ]
 }
 
 # ARC controller chart

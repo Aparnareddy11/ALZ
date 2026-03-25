@@ -1,0 +1,117 @@
+name: Terraform Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: "Type 'yes' to allow destroy"
+        required: true
+        default: "no"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-destroy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: true
+  ARM_USE_OIDC: true
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_github_app_private_key: ${{ secrets.GIT_APP_PRIVATE_KEY }}
+  TFSTATE_STORAGE_ACCOUNT_NAME: teststg252911
+  TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME || 'Harsha-RG' }}
+  TFSTATE_CONTAINER_NAME: ${{ secrets.TFSTATE_CONTAINER_NAME || 'tfstate' }}
+  TFSTATE_KEY: terraform-root.tfstate
+
+jobs:
+  destroy-plan:
+    name: Terraform Destroy Plan
+    if: ${{ github.event.inputs.confirm_destroy == 'yes' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate required ARC secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TF_VAR_github_app_private_key:-}" ]; then
+            echo "Missing secret: GIT_APP_PRIVATE_KEY"
+            echo "Add repository secret GIT_APP_PRIVATE_KEY and rerun."
+            exit 1
+          fi
+
+      - name: Terraform Init
+        run: |
+          terraform init -reconfigure \
+            -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP_NAME}" \
+            -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
+            -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
+            -backend-config="key=${TFSTATE_KEY}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Terraform Destroy Plan
+        run: terraform plan -destroy -var-file=test.auto.tfvars -out=tfdestroy
+
+      - name: Upload destroy plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfdestroy
+          path: tfdestroy
+
+  destroy-apply:
+    name: Terraform Destroy Apply
+    if: ${{ github.event.inputs.confirm_destroy == 'yes' }}
+    needs: destroy-plan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: |
+          terraform init -reconfigure \
+            -backend-config="resource_group_name=${TFSTATE_RESOURCE_GROUP_NAME}" \
+            -backend-config="storage_account_name=${TFSTATE_STORAGE_ACCOUNT_NAME}" \
+            -backend-config="container_name=${TFSTATE_CONTAINER_NAME}" \
+            -backend-config="key=${TFSTATE_KEY}" \
+            -backend-config="use_oidc=true" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Download destroy plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfdestroy
+          path: .
+
+      - name: Terraform Destroy Apply
+        run: terraform apply -auto-approve tfdestroy

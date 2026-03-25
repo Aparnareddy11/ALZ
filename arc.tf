@@ -6,26 +6,52 @@
 
 # Read AKS created in main.tf (module.default)
 data "azurerm_kubernetes_cluster" "aks" {
-  name                = local.aks_name_automatic
+  name                = local.aks_name_default
   resource_group_name = azurerm_resource_group.this.name
-  depends_on          = [module.automatic]
+  depends_on          = [module.default]
+}
+
+locals {
+  # Some AKS setups do not expose kube_admin_config (for example when local admin access is restricted).
+  aks_admin_kubeconfig = try(data.azurerm_kubernetes_cluster.aks.kube_admin_config[0], null)
+  aks_user_kubeconfig  = try(data.azurerm_kubernetes_cluster.aks.kube_config[0], null)
+
+  aks_kube_host = coalesce(
+    try(local.aks_admin_kubeconfig.host, null),
+    try(local.aks_user_kubeconfig.host, null)
+  )
+
+  aks_kube_client_certificate = coalesce(
+    try(local.aks_admin_kubeconfig.client_certificate, null),
+    try(local.aks_user_kubeconfig.client_certificate, null)
+  )
+
+  aks_kube_client_key = coalesce(
+    try(local.aks_admin_kubeconfig.client_key, null),
+    try(local.aks_user_kubeconfig.client_key, null)
+  )
+
+  aks_kube_cluster_ca_certificate = coalesce(
+    try(local.aks_admin_kubeconfig.cluster_ca_certificate, null),
+    try(local.aks_user_kubeconfig.cluster_ca_certificate, null)
+  )
 }
 
 # Kubernetes provider against AKS admin kubeconfig
 provider "kubernetes" {
-  host                   = data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].host
-  client_certificate     = base64decode(data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].client_certificate)
-  client_key             = base64decode(data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].client_key)
-  cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].cluster_ca_certificate)
+  host                   = local.aks_kube_host
+  client_certificate     = base64decode(local.aks_kube_client_certificate)
+  client_key             = base64decode(local.aks_kube_client_key)
+  cluster_ca_certificate = base64decode(local.aks_kube_cluster_ca_certificate)
 }
 
 # Helm provider against AKS admin kubeconfig
 provider "helm" {
   kubernetes = {
-    host                   = data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].host
-    client_certificate     = base64decode(data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].client_certificate)
-    client_key             = base64decode(data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].client_key)
-    cluster_ca_certificate = base64decode(data.azurerm_kubernetes_cluster.aks.kube_admin_config[0].cluster_ca_certificate)
+    host                   = local.aks_kube_host
+    client_certificate     = base64decode(local.aks_kube_client_certificate)
+    client_key             = base64decode(local.aks_kube_client_key)
+    cluster_ca_certificate = base64decode(local.aks_kube_cluster_ca_certificate)
   }
 }
 

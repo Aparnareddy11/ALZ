@@ -25,8 +25,8 @@ env:
 jobs:
   plan:
     name: Terraform Plan
-    runs-on: arc-runner-set  # Update this to match your AKS Arc runner label
-
+    # runs-on: arc-runner-set # Update this to match your AKS Arc runner label
+    runs-on: aks-arc-runners
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -167,17 +167,6 @@ resource "helm_release" "arc_runner_scale_set" {
         namespace = kubernetes_namespace.arc_system.metadata[0].name
         name      = "arc-gha-rs-controller"
       }
-
-      template = {
-        spec = {
-          containers = [
-            {
-              name  = "runner"
-              image = "ghcr.io/actions/actions-runner:latest"
-            }
-          ]
-        }
-      }
     })
   ]
 

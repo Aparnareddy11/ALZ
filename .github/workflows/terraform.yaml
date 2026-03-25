@@ -18,6 +18,7 @@ env:
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_github_app_private_key: ${{ secrets.GIT_APP_PRIVATE_KEY }}
   ARC_RUNNER_LABEL: aks-arc-runners
   TFSTATE_STORAGE_ACCOUNT_NAME: teststg252911
   TFSTATE_RESOURCE_GROUP_NAME: ${{ secrets.TFSTATE_RESOURCE_GROUP_NAME || 'Harsha-RG' }}
@@ -58,6 +59,16 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
+
+      - name: Validate required ARC secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${TF_VAR_github_app_private_key:-}" ]; then
+            echo "Missing secret: GIT_APP_PRIVATE_KEY"
+            echo "Add repository secret GIT_APP_PRIVATE_KEY and rerun."
+            exit 1
+          fi
 
       - name: Terraform Plan
         run: terraform plan -var-file=test.auto.tfvars -out=tfplan
@@ -133,23 +144,37 @@ jobs:
     steps:
       - name: Wait for ARC runner label to appear online
         uses: actions/github-script@v7
-        env:
-          ARC_LABEL: ${{ env.ARC_RUNNER_LABEL }}
-          MAX_ATTEMPTS: "20"
-          SLEEP_SECONDS: "30"
         with:
+          github-token: ${{ secrets.RUNNER_ADMIN_TOKEN || github.token }}
           script: |
             const arcLabel = process.env.ARC_LABEL;
             const maxAttempts = Number(process.env.MAX_ATTEMPTS || 20);
             const sleepSeconds = Number(process.env.SLEEP_SECONDS || 30);
             const { owner, repo } = context.repo;
 
+            const listRunners = async () => {
+              try {
+                return await github.rest.actions.listSelfHostedRunnersForRepo({
+                  owner,
+                  repo,
+                  per_page: 100
+                });
+              } catch (err) {
+                if (err.status === 403) {
+                  core.warning(
+                    "Cannot query self-hosted runners API (403). Skipping verification. To enable this check, add repository secret RUNNER_ADMIN_TOKEN with repo administration read access."
+                  );
+                  return null;
+                }
+                throw err;
+              }
+            };
+
             for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              const res = await github.rest.actions.listSelfHostedRunnersForRepo({
-                owner,
-                repo,
-                per_page: 100
-              });
+              const res = await listRunners();
+              if (!res) {
+                return;
+              }
 
               const hasOnlineArcRunner = res.data.runners.some((r) => {
                 const labels = (r.labels || []).map((l) => l.name);
@@ -168,5 +193,9 @@ jobs:
             }
 
             core.setFailed(`ARC runner label '${arcLabel}' is still not online. Check ARC listener/controller pods and GitHub App permissions/installation.`);
+        env:
+          ARC_LABEL: ${{ env.ARC_RUNNER_LABEL }}
+          MAX_ATTEMPTS: "20"
+          SLEEP_SECONDS: "30"
 
  

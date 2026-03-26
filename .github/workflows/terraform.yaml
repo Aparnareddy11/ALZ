@@ -18,6 +18,8 @@ env:
   ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_github_app_id: ${{ vars.GIT_APP_ID }}
+  TF_VAR_github_app_installation_id: ${{ vars.GIT_APP_INSTALLATION_ID }}
   TF_VAR_github_app_private_key: ${{ secrets.GIT_APP_PRIVATE_KEY }}
   ARC_RUNNER_LABEL: aks-arc-runners
   TFSTATE_STORAGE_ACCOUNT_NAME: teststg252911
@@ -60,10 +62,20 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Validate required ARC secret
+      - name: Validate required ARC GitHub App config
         shell: bash
         run: |
           set -euo pipefail
+          if [ -z "${TF_VAR_github_app_id:-}" ]; then
+            echo "Missing repository variable: GIT_APP_ID"
+            echo "Add repository variable GIT_APP_ID and rerun."
+            exit 1
+          fi
+          if [ -z "${TF_VAR_github_app_installation_id:-}" ]; then
+            echo "Missing repository variable: GIT_APP_INSTALLATION_ID"
+            echo "Add repository variable GIT_APP_INSTALLATION_ID and rerun."
+            exit 1
+          fi
           if [ -z "${TF_VAR_github_app_private_key:-}" ]; then
             echo "Missing secret: GIT_APP_PRIVATE_KEY"
             echo "Add repository secret GIT_APP_PRIVATE_KEY and rerun."
